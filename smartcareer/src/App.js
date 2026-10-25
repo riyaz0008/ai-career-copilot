@@ -161,7 +161,7 @@ function App() {
                         path="/admin-companies"
                         element={<AdminRoute><CompanyVerification /></AdminRoute>}
                     />
-                    <Route path="/admin-job-approval" element={<JobApproval />} />
+                    <Route path="/admin-job-approval" element={<AdminRoute><JobApproval /></AdminRoute>} />
 
                     <Route path="/company-register" element={<CompanyRegister />} />
                     <Route path="/company-login" element={<CompanyLogin />} />
@@ -170,7 +170,7 @@ function App() {
                     <Route path="/company-manage-jobs" element={<CompanyRoute> <ManageJobs /> </CompanyRoute>} />
                     <Route path="/company-applications" element={<CompanyRoute> <CompanyApplications /> </CompanyRoute>}/>
                     <Route path="/company-offer-change-requests" element={<CompanyRoute> <CompanyOfferChangeRequests /> </CompanyRoute>}/>
-                    <Route path="/company-profile" element={<AuthRoute><CompanyProfile /></AuthRoute>}/>
+                    <Route path="/company-profile" element={<CompanyRoute><CompanyProfile /></CompanyRoute>}/>
                 </Routes>
             </Suspense>
         </div>
