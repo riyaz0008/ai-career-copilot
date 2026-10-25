@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../api";
 import { Link } from "react-router-dom";
 
-const API_URL = "http://localhost:5000";
+
 
 const CompanyOfferChangeRequests = () => {
     const [requests, setRequests] = useState([]);
@@ -30,10 +30,10 @@ const CompanyOfferChangeRequests = () => {
             setLoading(true);
             setError("");
 
-            const response = await axios.get(
-                `${API_URL}/api/company/offer-change-requests`,
-                getHeaders()
-            );
+           const response = await api.get(
+    "/api/company/offer-change-requests",
+    getHeaders()
+);
 
             setRequests(
                 Array.isArray(response.data?.data)
@@ -145,11 +145,11 @@ const CompanyOfferChangeRequests = () => {
                 payload.revisedWorkLocation = revisedWorkLocation.trim();
             }
 
-            const response = await axios.put(
-                `${API_URL}/api/company/offer-change-requests/${selectedRequest._id}/respond`,
-                payload,
-                getHeaders()
-            );
+         const response = await api.put(
+    `/api/company/offer-change-requests/${selectedRequest._id}/respond`,
+    payload,
+    getHeaders()
+);
 
             alert(
                 response.data?.message ||

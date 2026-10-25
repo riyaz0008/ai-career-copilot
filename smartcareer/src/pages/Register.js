@@ -2,7 +2,7 @@ import React, { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import axios from 'axios';
+import api from "../api";
 
 const Register = () => {
 
@@ -118,22 +118,29 @@ const Register = () => {
       career: career,
       password: password
     };
-    //api calling 
+   
+    // API calling
     try {
-        const response=await axios.post("http://localhost:5000/api/add-user",formData)
-        if (response.data.status == 1) {
+      const response = await api.post("/api/add-user", formData);
+
+      if (response.data.status === 1) {
+        alert(response.data.message || "Account created successfully!");
         navigate("/login");
       } else {
-        alert(response.data.message);
+        alert(response.data.message || "Registration failed. Please try again.");
       }
-    } catch (err) {
-      console.log(err.message);
+        } catch (err) {
+      console.log("REGISTER ERROR:", err);
+      console.log("RESPONSE:", err.response?.data);
+
+      alert(
+        err.response?.data?.message ||
+        "Unable to register. Please try again."
+      );
     }
   };
- 
 
-return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white">
+  return (    <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white">
 
       <Navbar />
 

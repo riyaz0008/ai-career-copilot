@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import api from "../api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
@@ -50,15 +50,17 @@ const CompanyRegister = () => {
         try {
             setLoading(true);
 
-            const response = await axios.post(
-                "http://localhost:5000/api/company/register",
-                {
-                    ...formData,
-                    companyName: formData.companyName.trim(),
-                    contactName: formData.contactName.trim(),
-                    email: formData.email.trim().toLowerCase()
-                }
-            );
+            
+const response = await api.post(
+    "/api/company/register",
+    {
+        ...formData,
+        companyName: formData.companyName.trim(),
+        contactName: formData.contactName.trim(),
+        email: formData.email.trim().toLowerCase()
+    }
+);
+
 
             if (response.data.status === 1) {
                 setMessage(

@@ -1,6 +1,7 @@
+
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
@@ -34,8 +35,8 @@ const Forgetpass = () => {
         try {
             setLoading(true);
 
-            const response = await axios.post(
-                "http://localhost:5000/api/forgot-password/send-otp",
+            const response = await api.post(
+                "/api/forgot-password/send-otp",
                 {
                     email: cleanEmail
                 }
@@ -54,6 +55,7 @@ const Forgetpass = () => {
                 );
             }
         } catch (err) {
+            console.log("SEND OTP ERROR:", err);
             setError(
                 err.response?.data?.message ||
                 "Unable to send OTP. Please try again."
@@ -88,8 +90,8 @@ const Forgetpass = () => {
         try {
             setLoading(true);
 
-            const response = await axios.post(
-                "http://localhost:5000/api/forgot-password/verify-otp",
+            const response = await api.post(
+                "/api/forgot-password/verify-otp",
                 {
                     email: email.trim().toLowerCase(),
                     otp: otp.trim(),
@@ -98,7 +100,9 @@ const Forgetpass = () => {
             );
 
             if (response.data.status === 1) {
-                alert("Password updated successfully. Please sign in.");
+                alert(
+                    "Password updated successfully. Please sign in."
+                );
                 navigate("/login");
             } else {
                 setError(
@@ -107,6 +111,7 @@ const Forgetpass = () => {
                 );
             }
         } catch (err) {
+            console.log("RESET PASSWORD ERROR:", err);
             setError(
                 err.response?.data?.message ||
                 "OTP verification failed. Please try again."
@@ -206,9 +211,7 @@ const Forgetpass = () => {
                                     disabled={loading}
                                     className="w-full rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 py-4 font-bold text-white transition hover:from-indigo-500 hover:to-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
-                                    {loading
-                                        ? "Sending OTP..."
-                                        : "Send OTP"}
+                                    {loading ? "Sending OTP..." : "Send OTP"}
                                 </button>
                             </form>
                         ) : (

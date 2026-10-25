@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
@@ -37,13 +37,15 @@ const CompanyLogin = () => {
         try {
             setLoading(true);
 
-            const response = await axios.post(
-                "http://localhost:5000/api/company/login",
-                {
-                    email: formData.email.trim().toLowerCase(),
-                    password: formData.password
-                }
-            );
+            
+const response = await api.post(
+    "/api/company/login",
+    {
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password
+    }
+);
+
 
             if (response.data.status === 1) {
                 // Company session ko User/Admin sessions se alag rakhein.
