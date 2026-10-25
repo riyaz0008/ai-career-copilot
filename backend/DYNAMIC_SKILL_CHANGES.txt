@@ -1,0 +1,16 @@
+Dynamic Skill Matching Update
+
+1. Assessment question options now support objects:
+   { name: "Python", category: ["Software Development", "Cyber Security"] }
+2. One skill can belong to multiple career categories.
+3. Career assessment saves only skills that currently exist in active admin skill questions.
+4. Career recommendations no longer use a hardcoded/static skill list.
+5. For each career path, only admin skills assigned to that career category are checked.
+   Example: User selected Python, JavaScript, Linux.
+   - Software Development checks only skills assigned to Software Development.
+   - Cyber Security checks only skills assigned to Cyber Security.
+   Skills selected by the user but belonging to another category are ignored for that career.
+6. matchedSkills = selected user skills assigned to that category.
+7. missingSkills = admin skills assigned to that category that the user did not select.
+8. New admin skills automatically participate in matching without code changes.
+9. Career path details also receive the dynamic admin-managed category skills.

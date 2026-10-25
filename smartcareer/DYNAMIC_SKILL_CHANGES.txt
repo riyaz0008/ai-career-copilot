@@ -1,0 +1,7 @@
+Dynamic Skill Matching Frontend Update
+
+1. Career Assessment now reads active questions from /api/assessment-questions.
+2. Assessment options support the admin format { name, category }.
+3. User sees the skill names added by admin and selects only those skills.
+4. Admin Career Paths reads category choices from categories assigned to admin-managed skills.
+5. No static skill list was added to the frontend.
