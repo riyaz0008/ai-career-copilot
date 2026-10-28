@@ -1,6 +1,157 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+const formatAIText = (text = "") => {
+    return String(text)
+        .replace(/\\\*\\\*/g, "**")
+        .replace(/\\\*/g, "*")
+        .replace(/\\_/g, "_")
+        .replace(/&#x20;/gi, " ")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/\r\n/g, "\n")
+        .trim();
+};
+
+const MarkdownResponse = ({ content }) => {
+    const formattedContent = formatAIText(content);
+
+    return (
+        <div className="min-w-0 space-y-3 break-words text-sm leading-7 text-slate-200">
+            <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                    h1: ({ children }) => (
+                        <h2 className="mb-3 mt-5 text-xl font-bold text-white first:mt-0">
+                            {children}
+                        </h2>
+                    ),
+                    h2: ({ children }) => (
+                        <h2 className="mb-3 mt-5 border-b border-slate-700 pb-2 text-lg font-bold text-white first:mt-0">
+                            {children}
+                        </h2>
+                    ),
+                    h3: ({ children }) => (
+                        <h3 className="mb-2 mt-4 text-base font-bold text-indigo-300">
+                            {children}
+                        </h3>
+                    ),
+                    h4: ({ children }) => (
+                        <h4 className="mb-2 mt-3 font-semibold text-white">
+                            {children}
+                        </h4>
+                    ),
+                    p: ({ children }) => (
+                        <p className="my-2 whitespace-normal">
+                            {children}
+                        </p>
+                    ),
+                    strong: ({ children }) => (
+                        <strong className="font-bold text-white">
+                            {children}
+                        </strong>
+                    ),
+                    em: ({ children }) => (
+                        <em className="italic text-slate-200">
+                            {children}
+                        </em>
+                    ),
+                    ul: ({ children }) => (
+                        <ul className="my-3 list-disc space-y-2 pl-6 marker:text-indigo-400">
+                            {children}
+                        </ul>
+                    ),
+                    ol: ({ children }) => (
+                        <ol className="my-3 list-decimal space-y-2 pl-6 marker:font-semibold marker:text-indigo-300">
+                            {children}
+                        </ol>
+                    ),
+                    li: ({ children }) => (
+                        <li className="pl-1">
+                            {children}
+                        </li>
+                    ),
+                    blockquote: ({ children }) => (
+                        <blockquote className="my-3 border-l-4 border-indigo-500 pl-4 italic text-slate-300">
+                            {children}
+                        </blockquote>
+                    ),
+                    hr: () => (
+                        <hr className="my-5 border-slate-700" />
+                    ),
+                    a: ({ href, children }) => (
+                        <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="break-all text-indigo-300 underline underline-offset-4 hover:text-indigo-200"
+                        >
+                            {children}
+                        </a>
+                    ),
+                    table: ({ children }) => (
+                        <div className="my-4 w-full overflow-x-auto rounded-xl border border-slate-700">
+                            <table className="w-full border-collapse text-left text-sm">
+                                {children}
+                            </table>
+                        </div>
+                    ),
+                    thead: ({ children }) => (
+                        <thead className="bg-slate-800 text-white">
+                            {children}
+                        </thead>
+                    ),
+                    tbody: ({ children }) => (
+                        <tbody className="divide-y divide-slate-700">
+                            {children}
+                        </tbody>
+                    ),
+                    tr: ({ children }) => (
+                        <tr className="divide-x divide-slate-700">
+                            {children}
+                        </tr>
+                    ),
+                    th: ({ children }) => (
+                        <th className="whitespace-nowrap px-3 py-2 font-semibold">
+                            {children}
+                        </th>
+                    ),
+                    td: ({ children }) => (
+                        <td className="min-w-24 px-3 py-2 align-top">
+                            {children}
+                        </td>
+                    ),
+                    pre: ({ children }) => (
+                        <pre className="my-3 max-w-full overflow-x-auto rounded-xl border border-slate-700 bg-slate-950 p-4 text-xs leading-6">
+                            {children}
+                        </pre>
+                    ),
+                    code: ({ className, children, ...props }) => {
+                        const isCodeBlock = Boolean(className);
+
+                        return isCodeBlock ? (
+                            <code
+                                className={`${className} font-mono`}
+                                {...props}
+                            >
+                                {children}
+                            </code>
+                        ) : (
+                            <code className="break-words rounded-md border border-slate-700 bg-slate-950 px-1.5 py-0.5 font-mono text-xs text-indigo-200">
+                                {children}
+                            </code>
+                        );
+                    },
+                }}
+            >
+                {formattedContent}
+            </ReactMarkdown>
+        </div>
+    );
+};
 
 const AICareerAdvisor = () => {
     const navigate = useNavigate();
@@ -15,7 +166,7 @@ const AICareerAdvisor = () => {
     const [loading, setLoading] = useState(false);
     const [loadingChats, setLoadingChats] = useState(true);
     const [error, setError] = useState("");
-    const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [selectedFile, setSelectedFile] = useState(null);
 
     const suggestions = [
@@ -54,6 +205,14 @@ const AICareerAdvisor = () => {
         }
     };
 
+    const clearSelectedFile = () => {
+        setSelectedFile(null);
+
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+    };
+
     const startNewChat = () => {
         if (loading) return;
 
@@ -61,12 +220,8 @@ const AICareerAdvisor = () => {
         setHistory([]);
         setMessage("");
         setError("");
-        setSelectedFile(null);
+        clearSelectedFile();
         setSidebarOpen(false);
-
-        if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-        }
 
         inputRef.current?.focus();
     };
@@ -84,8 +239,7 @@ const AICareerAdvisor = () => {
 
             if (response.data?.status !== 1) {
                 throw new Error(
-                    response.data?.message ||
-                    "Unable to open chat."
+                    response.data?.message || "Unable to open chat."
                 );
             }
 
@@ -94,12 +248,8 @@ const AICareerAdvisor = () => {
             setChatId(chat._id);
             setHistory(chat.messages || []);
             setMessage("");
-            setSelectedFile(null);
+            clearSelectedFile();
             setSidebarOpen(false);
-
-            if (fileInputRef.current) {
-                fileInputRef.current.value = "";
-            }
         } catch (err) {
             setError(
                 err.response?.data?.message ||
@@ -168,16 +318,14 @@ const AICareerAdvisor = () => {
 
             if (response.data?.status === 1) {
                 setChats((previous) =>
-                    previous.filter(
-                        (item) => item._id !== chat._id
-                    )
+                    previous.filter((item) => item._id !== chat._id)
                 );
 
                 if (chatId === chat._id) {
                     setChatId(null);
                     setHistory([]);
                     setMessage("");
-                    setSelectedFile(null);
+                    clearSelectedFile();
                 }
             }
         } catch (err) {
@@ -188,30 +336,18 @@ const AICareerAdvisor = () => {
         }
     };
 
-    // Select and validate attachment
     const handleFileChange = (event) => {
         const file = event.target.files?.[0];
 
         if (!file) return;
 
-        const allowedExtensions = [
-            "pdf",
-            "doc",
-            "docx",
-            "txt",
-            "rtf",
-        ];
-
-        const extension = file.name
-            .split(".")
-            .pop()
-            .toLowerCase();
+        const allowedExtensions = ["pdf", "docx", "txt"];
+        const extension = file.name.split(".").pop().toLowerCase();
 
         if (!allowedExtensions.includes(extension)) {
             window.alert(
-                "Please select a PDF, DOC, DOCX, TXT, or RTF file."
+                "Please select a PDF, DOCX, or TXT file."
             );
-
             event.target.value = "";
             return;
         }
@@ -219,10 +355,7 @@ const AICareerAdvisor = () => {
         const maxSize = 10 * 1024 * 1024;
 
         if (file.size > maxSize) {
-            window.alert(
-                "File size must be 10 MB or less."
-            );
-
+            window.alert("File size must be 10 MB or less.");
             event.target.value = "";
             return;
         }
@@ -231,16 +364,6 @@ const AICareerAdvisor = () => {
         setError("");
     };
 
-    // Remove attachment
-    const removeSelectedFile = () => {
-        setSelectedFile(null);
-
-        if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-        }
-    };
-
-    // Send message and optional attachment
     const sendMessage = async (text = message) => {
         const question = text.trim();
 
@@ -253,6 +376,15 @@ const AICareerAdvisor = () => {
         const userMessage = {
             role: "user",
             text: question || `Attached file: ${attachment.name}`,
+            ...(attachment
+                ? {
+                    attachment: {
+                        name: attachment.name,
+                        size: attachment.size,
+                        type: attachment.type,
+                    },
+                }
+                : {}),
         };
 
         setHistory((previous) => [
@@ -268,7 +400,6 @@ const AICareerAdvisor = () => {
             let response;
 
             if (attachment) {
-                // File upload uses multipart/form-data.
                 const formData = new FormData();
 
                 formData.append("message", question);
@@ -312,12 +443,7 @@ const AICareerAdvisor = () => {
                 },
             ]);
 
-            setSelectedFile(null);
-
-            if (fileInputRef.current) {
-                fileInputRef.current.value = "";
-            }
-
+            clearSelectedFile();
             await loadChats();
         } catch (err) {
             const returnedChatId =
@@ -358,9 +484,9 @@ const AICareerAdvisor = () => {
     };
 
     return (
-        <div className="flex h-screen overflow-hidden bg-slate-950 text-white">
+        <div className="flex h-[100dvh] overflow-hidden bg-slate-950 text-white">
 
-            {/* Mobile sidebar overlay */}
+            {/* Mobile overlay */}
             {sidebarOpen && (
                 <button
                     type="button"
@@ -370,12 +496,10 @@ const AICareerAdvisor = () => {
                 />
             )}
 
-            {/* Chat history sidebar */}
+            {/* Sidebar */}
             <aside
-                className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-slate-800 bg-slate-900 transition-transform duration-200 md:static md:translate-x-0 ${
-                    sidebarOpen
-                        ? "translate-x-0"
-                        : "-translate-x-full"
+                className={`fixed inset-y-0 left-0 z-40 flex w-72 shrink-0 flex-col border-r border-slate-800 bg-slate-900 transition-transform duration-200 md:static md:translate-x-0 ${
+                    sidebarOpen ? "translate-x-0" : "-translate-x-full"
                 }`}
             >
                 <div className="flex items-center justify-between border-b border-slate-800 p-4">
@@ -384,15 +508,15 @@ const AICareerAdvisor = () => {
                         onClick={() => navigate("/user-dashboard")}
                         className="flex items-center gap-2 text-sm font-semibold text-slate-200 hover:text-white"
                     >
-                        <span className="text-xl">✦</span>
+                        <span className="text-xl text-indigo-400">✦</span>
                         AI Career Copilot
                     </button>
 
                     <button
                         type="button"
                         onClick={() => setSidebarOpen(false)}
-                        className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 md:hidden"
                         aria-label="Close chat history"
+                        className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 md:hidden"
                     >
                         ✕
                     </button>
@@ -403,7 +527,7 @@ const AICareerAdvisor = () => {
                         type="button"
                         onClick={startNewChat}
                         disabled={loading}
-                        className="flex w-full items-center gap-3 rounded-xl border border-slate-700 px-4 py-3 text-sm font-medium text-white transition hover:border-indigo-500 hover:bg-slate-800 disabled:opacity-50"
+                        className="flex w-full items-center gap-3 rounded-xl border border-slate-700 px-4 py-3 text-sm font-medium hover:border-indigo-500 hover:bg-slate-800 disabled:opacity-50"
                     >
                         <span className="text-lg">＋</span>
                         New Chat
@@ -485,7 +609,7 @@ const AICareerAdvisor = () => {
                     <button
                         type="button"
                         onClick={() => navigate("/user-dashboard")}
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-slate-300 hover:bg-slate-800 hover:text-white"
                     >
                         <span>←</span>
                         Back to Dashboard
@@ -493,9 +617,9 @@ const AICareerAdvisor = () => {
                 </div>
             </aside>
 
-            {/* Main Chat */}
+            {/* Main content */}
             <div className="flex min-w-0 flex-1 flex-col">
-                <header className="flex items-center justify-between gap-3 border-b border-slate-800 bg-slate-950/95 px-4 py-3 sm:px-6">
+                <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-800 bg-slate-950/95 px-4 py-3 sm:px-6">
                     <div className="flex min-w-0 items-center gap-3">
                         <button
                             type="button"
@@ -515,7 +639,6 @@ const AICareerAdvisor = () => {
                             <h1 className="truncate font-bold sm:text-lg">
                                 AI Career Advisor
                             </h1>
-
                             <p className="text-xs text-slate-400">
                                 Your personal AI assistant
                             </p>
@@ -593,40 +716,48 @@ const AICareerAdvisor = () => {
                                             )}
 
                                             <div
-                                                className={`max-w-[88%] rounded-2xl px-4 py-3 sm:max-w-[80%] sm:px-5 ${
+                                                className={`min-w-0 max-w-[88%] rounded-2xl px-4 py-3 sm:max-w-[80%] sm:px-5 ${
                                                     item.role === "user"
                                                         ? "rounded-br-md bg-indigo-600 text-white"
                                                         : "rounded-tl-md border border-slate-800 bg-slate-900 text-slate-200"
                                                 }`}
                                             >
                                                 {item.role === "model" && (
-                                                    <p className="mb-2 text-xs font-semibold text-indigo-300">
+                                                    <p className="mb-3 text-xs font-semibold text-indigo-300">
                                                         AI Career Advisor
                                                     </p>
                                                 )}
 
-                                                <div className="whitespace-pre-wrap break-words text-sm leading-7">
-                                                    {item.text}
-                                                </div>
-                                                
-{item.attachment && (
-    <div className="mt-3 flex items-center gap-3 rounded-xl border border-white/20 bg-black/10 p-3">
-        <span className="text-xl">📎</span>
+                                                {item.role === "model" ? (
+                                                    <MarkdownResponse content={item.text} />
+                                                ) : (
+                                                    <p className="whitespace-pre-wrap break-words text-sm leading-7">
+                                                        {item.text}
+                                                    </p>
+                                                )}
 
-        <div className="min-w-0">
-            <p className="truncate text-sm font-medium">
-                {item.attachment.name}
-            </p>
+                                                {item.attachment && (
+                                                    <div className="mt-3 flex items-center gap-3 rounded-xl border border-white/20 bg-black/10 p-3">
+                                                        <span className="text-xl">
+                                                            📎
+                                                        </span>
 
-            {typeof item.attachment.size === "number" && (
-                <p className="text-xs opacity-70">
-                    {(item.attachment.size / (1024 * 1024)).toFixed(2)} MB
-                </p>
-            )}
-        </div>
-    </div>
-)}
+                                                        <div className="min-w-0">
+                                                            <p className="truncate text-sm font-medium">
+                                                                {item.attachment.name}
+                                                            </p>
 
+                                                            {typeof item.attachment.size === "number" && (
+                                                                <p className="text-xs opacity-70">
+                                                                    {(
+                                                                        item.attachment.size /
+                                                                        (1024 * 1024)
+                                                                    ).toFixed(2)} MB
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {item.role === "user" && (
@@ -639,7 +770,9 @@ const AICareerAdvisor = () => {
 
                                     {loading && (
                                         <div className="flex items-center gap-3 text-sm text-slate-400">
-                                            <span className="text-xl text-indigo-300">✦</span>
+                                            <span className="text-xl text-indigo-300">
+                                                ✦
+                                            </span>
                                             AI Career Advisor is thinking...
                                         </div>
                                     )}
@@ -653,12 +786,13 @@ const AICareerAdvisor = () => {
                                     role="alert"
                                     className="mb-3 flex items-start justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300"
                                 >
-                                    <span>{error}</span>
+                                    <span className="break-words">{error}</span>
 
                                     <button
                                         type="button"
                                         onClick={() => setError("")}
                                         aria-label="Dismiss error"
+                                        className="shrink-0"
                                     >
                                         ✕
                                     </button>
@@ -667,15 +801,13 @@ const AICareerAdvisor = () => {
                         </div>
                     </div>
 
-                    {/* Message Input */}
+                    {/* Message composer */}
                     <div className="shrink-0 border-t border-slate-800/70 bg-slate-950 px-4 pb-4 pt-3 sm:px-6 sm:pb-6">
                         <div className="mx-auto max-w-4xl">
-
                             <form
                                 onSubmit={handleSubmit}
-                                className="rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-xl focus-within:border-indigo-500/70"
+                                className="rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-xl transition focus-within:border-indigo-500/70"
                             >
-                                {/* Hidden file picker */}
                                 <input
                                     ref={fileInputRef}
                                     type="file"
@@ -684,7 +816,6 @@ const AICareerAdvisor = () => {
                                     onChange={handleFileChange}
                                 />
 
-                                {/* Selected file preview */}
                                 {selectedFile && (
                                     <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2">
                                         <div className="flex min-w-0 items-center gap-3">
@@ -696,21 +827,19 @@ const AICareerAdvisor = () => {
                                                 <p className="truncate text-sm font-medium text-white">
                                                     {selectedFile.name}
                                                 </p>
-
                                                 <p className="text-xs text-slate-400">
                                                     {(
                                                         selectedFile.size /
                                                         (1024 * 1024)
-                                                    ).toFixed(2)}{" "}
-                                                    MB
+                                                    ).toFixed(2)} MB
                                                 </p>
                                             </div>
                                         </div>
 
                                         <button
                                             type="button"
-                                            onClick={removeSelectedFile}
-                                            className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+                                            onClick={clearSelectedFile}
+                                            className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white"
                                             aria-label="Remove attached file"
                                             title="Remove file"
                                         >
@@ -743,8 +872,7 @@ const AICareerAdvisor = () => {
                                 />
 
                                 <div className="flex items-center justify-between gap-3 px-2 pb-1">
-                                    <div className="flex items-center gap-2">
-                                        {/* Add file button */}
+                                    <div className="flex min-w-0 items-center gap-2">
                                         <button
                                             type="button"
                                             onClick={() =>
