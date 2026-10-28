@@ -51,11 +51,6 @@ const AdminSidebar = () => {
     icon: "🎤"
 },
         {
-            name: "Reports",
-            path: "/admin-reports",
-            icon: "📈"
-        },
-        {
             name: "Settings",
             path: "/admin-settings",
             icon: "⚙️"
