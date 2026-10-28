@@ -107,16 +107,6 @@ const Sidebar = () => {
     <span>🤝</span>
     <span>My Job Offers</span>
 </Link>
-
-        <Link
-          to="/projects"
-          className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-900 text-slate-300 hover:text-white transition"
-        >
-          <span>🚀</span>
-          <span>Projects</span>
-        </Link>
-
-
         <Link
           to="/resume"
           className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-900 text-slate-300 hover:text-white transition"
