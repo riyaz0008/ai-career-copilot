@@ -6,6 +6,7 @@ const AICareerAdvisor = () => {
     const navigate = useNavigate();
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
+    const fileInputRef = useRef(null);
 
     const [message, setMessage] = useState("");
     const [history, setHistory] = useState([]);
@@ -15,12 +16,13 @@ const AICareerAdvisor = () => {
     const [loadingChats, setLoadingChats] = useState(true);
     const [error, setError] = useState("");
     const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [selectedFile, setSelectedFile] = useState(null);
 
     const suggestions = [
         "Which career is best for my skills?",
         "How can I improve my programming skills?",
         "Create a learning roadmap for me",
-        "Explain MERN stack in simple words"
+        "Explain MERN stack in simple words",
     ];
 
     useEffect(() => {
@@ -29,7 +31,7 @@ const AICareerAdvisor = () => {
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({
-            behavior: "smooth"
+            behavior: "smooth",
         });
     }, [history, loading]);
 
@@ -59,7 +61,13 @@ const AICareerAdvisor = () => {
         setHistory([]);
         setMessage("");
         setError("");
+        setSelectedFile(null);
         setSidebarOpen(false);
+
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+
         inputRef.current?.focus();
     };
 
@@ -76,7 +84,8 @@ const AICareerAdvisor = () => {
 
             if (response.data?.status !== 1) {
                 throw new Error(
-                    response.data?.message || "Unable to open chat."
+                    response.data?.message ||
+                    "Unable to open chat."
                 );
             }
 
@@ -85,7 +94,12 @@ const AICareerAdvisor = () => {
             setChatId(chat._id);
             setHistory(chat.messages || []);
             setMessage("");
+            setSelectedFile(null);
             setSidebarOpen(false);
+
+            if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
         } catch (err) {
             setError(
                 err.response?.data?.message ||
@@ -119,10 +133,13 @@ const AICareerAdvisor = () => {
             );
 
             if (response.data?.status === 1) {
-                setChats(previous =>
-                    previous.map(item =>
+                setChats((previous) =>
+                    previous.map((item) =>
                         item._id === chat._id
-                            ? { ...item, title: response.data.data.title }
+                            ? {
+                                ...item,
+                                title: response.data.data.title,
+                            }
                             : item
                     )
                 );
@@ -150,14 +167,17 @@ const AICareerAdvisor = () => {
             );
 
             if (response.data?.status === 1) {
-                setChats(previous =>
-                    previous.filter(item => item._id !== chat._id)
+                setChats((previous) =>
+                    previous.filter(
+                        (item) => item._id !== chat._id
+                    )
                 );
 
                 if (chatId === chat._id) {
                     setChatId(null);
                     setHistory([]);
                     setMessage("");
+                    setSelectedFile(null);
                 }
             }
         } catch (err) {
@@ -168,29 +188,110 @@ const AICareerAdvisor = () => {
         }
     };
 
+    // Select and validate attachment
+    const handleFileChange = (event) => {
+        const file = event.target.files?.[0];
+
+        if (!file) return;
+
+        const allowedExtensions = [
+            "pdf",
+            "doc",
+            "docx",
+            "txt",
+            "rtf",
+        ];
+
+        const extension = file.name
+            .split(".")
+            .pop()
+            .toLowerCase();
+
+        if (!allowedExtensions.includes(extension)) {
+            window.alert(
+                "Please select a PDF, DOC, DOCX, TXT, or RTF file."
+            );
+
+            event.target.value = "";
+            return;
+        }
+
+        const maxSize = 10 * 1024 * 1024;
+
+        if (file.size > maxSize) {
+            window.alert(
+                "File size must be 10 MB or less."
+            );
+
+            event.target.value = "";
+            return;
+        }
+
+        setSelectedFile(file);
+        setError("");
+    };
+
+    // Remove attachment
+    const removeSelectedFile = () => {
+        setSelectedFile(null);
+
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+    };
+
+    // Send message and optional attachment
     const sendMessage = async (text = message) => {
         const question = text.trim();
 
-        if (!question || loading) return;
+        if ((!question && !selectedFile) || loading) {
+            return;
+        }
+
+        const attachment = selectedFile;
 
         const userMessage = {
             role: "user",
-            text: question
+            text: question || `Attached file: ${attachment.name}`,
         };
 
-        setHistory(previous => [...previous, userMessage]);
+        setHistory((previous) => [
+            ...previous,
+            userMessage,
+        ]);
+
         setMessage("");
         setError("");
         setLoading(true);
 
         try {
-            const response = await api.post(
-                "/api/ai-career-advisor/chat",
-                {
-                    message: question,
-                    ...(chatId ? { chatId } : {})
+            let response;
+
+            if (attachment) {
+                // File upload uses multipart/form-data.
+                const formData = new FormData();
+
+                formData.append("message", question);
+
+                if (chatId) {
+                    formData.append("chatId", chatId);
                 }
-            );
+
+                formData.append("file", attachment);
+
+                response = await api.post(
+                    "/api/ai-career-advisor/chat",
+                    formData
+                );
+            } else {
+                response = await api.post(
+                    "/api/ai-career-advisor/chat",
+                    {
+                        message: question,
+                        ...(chatId ? { chatId } : {}),
+                    }
+                );
+            }
 
             if (response.data?.status !== 1) {
                 throw new Error(
@@ -203,17 +304,24 @@ const AICareerAdvisor = () => {
 
             setChatId(data.chatId);
 
-            setHistory(previous => [
+            setHistory((previous) => [
                 ...previous,
                 {
                     role: "model",
-                    text: data.reply
-                }
+                    text: data.reply,
+                },
             ]);
+
+            setSelectedFile(null);
+
+            if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
 
             await loadChats();
         } catch (err) {
-            const returnedChatId = err.response?.data?.data?.chatId;
+            const returnedChatId =
+                err.response?.data?.data?.chatId;
 
             if (returnedChatId) {
                 setChatId(returnedChatId);
@@ -222,9 +330,13 @@ const AICareerAdvisor = () => {
             const status = err.response?.status;
 
             if (status === 401) {
-                setError("Your session may have expired. Please log in again.");
+                setError(
+                    "Your session may have expired. Please log in again."
+                );
             } else if (status === 403) {
-                setError("Please log in with a normal user account to use this feature.");
+                setError(
+                    "Please log in with a normal user account to use this feature."
+                );
             } else {
                 setError(
                     err.response?.data?.message ||
@@ -258,10 +370,12 @@ const AICareerAdvisor = () => {
                 />
             )}
 
-            {/* Sidebar */}
+            {/* Chat history sidebar */}
             <aside
                 className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-slate-800 bg-slate-900 transition-transform duration-200 md:static md:translate-x-0 ${
-                    sidebarOpen ? "translate-x-0" : "-translate-x-full"
+                    sidebarOpen
+                        ? "translate-x-0"
+                        : "-translate-x-full"
                 }`}
             >
                 <div className="flex items-center justify-between border-b border-slate-800 p-4">
@@ -310,11 +424,11 @@ const AICareerAdvisor = () => {
                             Your previous conversations will appear here.
                         </p>
                     ) : (
-                        chats.map(chat => (
+                        chats.map((chat) => (
                             <div
                                 key={chat._id}
                                 onClick={() => openChat(chat._id)}
-                                onKeyDown={event => {
+                                onKeyDown={(event) => {
                                     if (event.key === "Enter") {
                                         openChat(chat._id);
                                     }
@@ -341,7 +455,9 @@ const AICareerAdvisor = () => {
                                             type="button"
                                             title="Rename chat"
                                             aria-label={`Rename ${chat.title}`}
-                                            onClick={event => renameChat(event, chat)}
+                                            onClick={(event) =>
+                                                renameChat(event, chat)
+                                            }
                                             className="rounded-md p-1 text-slate-400 hover:bg-slate-700 hover:text-white"
                                         >
                                             ✎
@@ -351,7 +467,9 @@ const AICareerAdvisor = () => {
                                             type="button"
                                             title="Delete chat"
                                             aria-label={`Delete ${chat.title}`}
-                                            onClick={event => deleteChat(event, chat)}
+                                            onClick={(event) =>
+                                                deleteChat(event, chat)
+                                            }
                                             className="rounded-md p-1 text-slate-400 hover:bg-red-500/20 hover:text-red-300"
                                         >
                                             🗑
@@ -397,6 +515,7 @@ const AICareerAdvisor = () => {
                             <h1 className="truncate font-bold sm:text-lg">
                                 AI Career Advisor
                             </h1>
+
                             <p className="text-xs text-slate-400">
                                 Your personal AI assistant
                             </p>
@@ -440,7 +559,7 @@ const AICareerAdvisor = () => {
                                     </p>
 
                                     <div className="mt-8 grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
-                                        {suggestions.map(suggestion => (
+                                        {suggestions.map((suggestion) => (
                                             <button
                                                 key={suggestion}
                                                 type="button"
@@ -489,6 +608,25 @@ const AICareerAdvisor = () => {
                                                 <div className="whitespace-pre-wrap break-words text-sm leading-7">
                                                     {item.text}
                                                 </div>
+                                                
+{item.attachment && (
+    <div className="mt-3 flex items-center gap-3 rounded-xl border border-white/20 bg-black/10 p-3">
+        <span className="text-xl">📎</span>
+
+        <div className="min-w-0">
+            <p className="truncate text-sm font-medium">
+                {item.attachment.name}
+            </p>
+
+            {typeof item.attachment.size === "number" && (
+                <p className="text-xs opacity-70">
+                    {(item.attachment.size / (1024 * 1024)).toFixed(2)} MB
+                </p>
+            )}
+        </div>
+    </div>
+)}
+
                                             </div>
 
                                             {item.role === "user" && (
@@ -516,6 +654,7 @@ const AICareerAdvisor = () => {
                                     className="mb-3 flex items-start justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300"
                                 >
                                     <span>{error}</span>
+
                                     <button
                                         type="button"
                                         onClick={() => setError("")}
@@ -531,19 +670,63 @@ const AICareerAdvisor = () => {
                     {/* Message Input */}
                     <div className="shrink-0 border-t border-slate-800/70 bg-slate-950 px-4 pb-4 pt-3 sm:px-6 sm:pb-6">
                         <div className="mx-auto max-w-4xl">
+
                             <form
-                                onSubmit={event => {
-                                    event.preventDefault();
-                                    sendMessage();
-                                }}
+                                onSubmit={handleSubmit}
                                 className="rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-xl focus-within:border-indigo-500/70"
                             >
+                                {/* Hidden file picker */}
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".pdf,.docx,.txt"
+                                    className="hidden"
+                                    onChange={handleFileChange}
+                                />
+
+                                {/* Selected file preview */}
+                                {selectedFile && (
+                                    <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2">
+                                        <div className="flex min-w-0 items-center gap-3">
+                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-500/20 text-lg">
+                                                📎
+                                            </div>
+
+                                            <div className="min-w-0">
+                                                <p className="truncate text-sm font-medium text-white">
+                                                    {selectedFile.name}
+                                                </p>
+
+                                                <p className="text-xs text-slate-400">
+                                                    {(
+                                                        selectedFile.size /
+                                                        (1024 * 1024)
+                                                    ).toFixed(2)}{" "}
+                                                    MB
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={removeSelectedFile}
+                                            className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+                                            aria-label="Remove attached file"
+                                            title="Remove file"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                )}
+
                                 <textarea
                                     ref={inputRef}
                                     rows={1}
                                     value={message}
-                                    onChange={event => setMessage(event.target.value)}
-                                    onKeyDown={event => {
+                                    onChange={(event) =>
+                                        setMessage(event.target.value)
+                                    }
+                                    onKeyDown={(event) => {
                                         if (
                                             event.key === "Enter" &&
                                             !event.shiftKey &&
@@ -554,19 +737,38 @@ const AICareerAdvisor = () => {
                                         }
                                     }}
                                     maxLength={4000}
-                                    placeholder="Ask about careers, skills, coding, or anything else..."
+                                    placeholder="Ask about careers, skills, coding, or attach your resume..."
                                     aria-label="Your message"
                                     className="max-h-36 min-h-12 w-full resize-y bg-transparent px-3 py-3 text-sm leading-6 text-white outline-none placeholder:text-slate-500"
                                 />
 
                                 <div className="flex items-center justify-between gap-3 px-2 pb-1">
-                                    <p className="text-xs text-slate-500">
-                                        Enter to send · Shift + Enter for a new line
-                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        {/* Add file button */}
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                fileInputRef.current?.click()
+                                            }
+                                            disabled={loading}
+                                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-700 text-xl text-slate-300 transition hover:border-indigo-500 hover:bg-slate-800 disabled:opacity-40"
+                                            title="Attach resume or document"
+                                            aria-label="Attach a file"
+                                        >
+                                            +
+                                        </button>
+
+                                        <p className="hidden text-xs text-slate-500 sm:block">
+                                            Enter to send · Shift + Enter for a new line
+                                        </p>
+                                    </div>
 
                                     <button
                                         type="submit"
-                                        disabled={!message.trim() || loading}
+                                        disabled={
+                                            (!message.trim() && !selectedFile) ||
+                                            loading
+                                        }
                                         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                                         aria-label="Send message"
                                         title="Send message"

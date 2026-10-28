@@ -5,10 +5,68 @@ import CareerAssessment from "../models/CareerAssessment.js";
 import CareerPath from "../models/CareerPath.js";
 import UserLearningProgress from "../models/UserLearningProgress.js";
 import AICareerChat from "../models/AICareerChat.js";
+import { PDFParse } from "pdf-parse";
+import mammoth from "mammoth";
 
 const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY
 });
+
+const extractResumeText = async (file) => {
+    if (!file) return "";
+
+    const fileName = file.originalname.toLowerCase();
+
+    if (fileName.endsWith(".pdf")) {
+        const parser = new PDFParse({
+            data: file.buffer
+        });
+
+        try {
+            const result = await parser.getText();
+            const text = result.text?.trim();
+
+            if (!text) {
+                throw new Error(
+    "No readable text was found in the PDF. If it is a scanned image, OCR may be required."
+);
+            }
+
+            return text;
+        } finally {
+            await parser.destroy();
+        }
+    }
+
+    if (fileName.endsWith(".docx")) {
+        const result = await mammoth.extractRawText({
+            buffer: file.buffer
+        });
+
+        const text = result.value?.trim();
+
+        if (!text) {
+            throw new Error("No readable text was found in the DOCX file.");
+        }
+
+        return text;
+    }
+
+    if (fileName.endsWith(".txt")) {
+        const text = file.buffer.toString("utf8").trim();
+
+        if (!text) {
+           throw new Error("The TXT file is empty.");
+        }
+
+        return text;
+    }
+
+  throw new Error(
+    "Only PDF, DOCX, and TXT resume files are supported."
+);
+};
+
 
 const modelsToTry = [
     "gemini-3.5-flash-lite",
@@ -284,7 +342,8 @@ export const chatWithAICareerAdvisor = async (req, res) => {
 
     try {
         const userId = getUserId(req);
-        const { message, chatId } = req.body;
+        const { message, chatId } = req.body || {};
+const uploadedFile = req.file;
 
         if (!isUserAllowed(req)) {
             return res.status(403).json({
@@ -293,21 +352,50 @@ export const chatWithAICareerAdvisor = async (req, res) => {
             });
         }
 
-        if (typeof message !== "string" || !message.trim()) {
-            return res.status(400).json({
-                status: 0,
-                message: "Please enter a question."
-            });
-        }
+        if (
+    (typeof message !== "string" || !message.trim()) &&
+    !uploadedFile
+) {
+    return res.status(400).json({
+        status: 0,
+        message: "Please enter a question or attach a resume."
+    });
+}
 
-        const question = message.trim();
+const question =
+    typeof message === "string" && message.trim()
+        ? message.trim()
+        : "Please analyze my attached resume and give me career guidance.";
 
-        if (question.length > 4000) {
-            return res.status(400).json({
-                status: 0,
-                message: "Your message must be under 4000 characters."
-            });
+if (question.length > 4000) {
+    return res.status(400).json({
+        status: 0,
+        message: "Your message must be under 4000 characters."
+    });
+}
+
+
+let resumeText = "";
+
+if (uploadedFile) {
+    try {
+        resumeText = await extractResumeText(uploadedFile);
+
+        if (resumeText.length > 30000) {
+            resumeText = resumeText.slice(0, 30000);
         }
+    } catch (fileError) {
+        console.error("Resume extraction error:", fileError.message);
+
+        return res.status(400).json({
+            status: 0,
+            message: fileError.message || "Unable to read the attached file."
+        });
+    }
+}
+
+
+       
 
         let chat;
 
@@ -347,10 +435,19 @@ export const chatWithAICareerAdvisor = async (req, res) => {
                 text: item.text
             }));
 
-        chat.messages.push({
-            role: "user",
-            text: question
-        });
+       chat.messages.push({
+    role: "user",
+    text: question,
+    ...(uploadedFile
+        ? {
+            attachment: {
+                name: uploadedFile.originalname,
+                size: uploadedFile.size,
+                type: uploadedFile.mimetype
+            }
+        }
+        : {})
+});
 
         await chat.save();
         userMessageSaved = true;
@@ -425,9 +522,22 @@ export const chatWithAICareerAdvisor = async (req, res) => {
             )
             .join("\n");
 
-        const prompt = `
+     
+const prompt = `
 The current user asks:
 ${question}
+
+${resumeText
+    ? `
+ATTACHED RESUME CONTENT:
+${resumeText}
+
+Analyze the attached resume. Identify the candidate's skills,
+experience, strengths, missing skills and suitable career paths.
+Give practical suggestions based on the resume content.
+`
+    : ""
+}
 
 Recent conversation:
 ${conversation || "This is the beginning of the conversation."}
@@ -435,6 +545,7 @@ ${conversation || "This is the beginning of the conversation."}
 Verified career data from the website:
 ${JSON.stringify(careerContext, null, 2)}
 `;
+
 
         const systemInstruction = `
 You are AI Career Advisor inside the AI Career Copilot website.

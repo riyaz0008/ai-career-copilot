@@ -10,7 +10,18 @@ const messageSchema = new mongoose.Schema(
         text: {
             type: String,
             required: true
-        }
+        },
+        attachment: {
+    name: {
+        type: String
+    },
+    size: {
+        type: Number
+    },
+    type: {
+        type: String
+    }
+}
     },
     {
         _id: false
